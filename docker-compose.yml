@@ -1,0 +1,68 @@
+version: "3.8"
+
+networks:
+  rflct-lan:
+
+services:
+  telegraf:
+    container_name: telegraf
+    image: telegraf
+    volumes:
+      - $PWD/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - $PWD/telegraf/tmp/metrics.log:/tmp/metrics.log:rw
+      - $PWD/telegraf/tmp/telegraf.log:/tmp/telegraf.log:rw
+    environment:
+      - "INFLUX_TOKEN=${INFLUX_TOKEN}"
+    restart: always
+    ports: 
+      - "5050:5050"
+      - "8125:8125"
+    depends_on:
+      - influxdb
+    # command: "telegraf --watch-config poll"
+    networks:
+      - rflct-lan
+
+  mosquitto:
+    container_name: mosquitto
+    image: eclipse-mosquitto:latest
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    depends_on:
+      - influxdb
+    volumes:
+      - $PWD/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      # - $PWD/mosquitto/mosquitto-no-auth.conf:/mosquitto/config/mosquitto.conf
+      - $PWD/mosquitto/data:/mosquitto/data
+      - $PWD/mosquitto/log:/mosquitto/log
+      # Mock Sensor Message to Send
+      - $PWD/mosquitto/mock/message.json:/message.json:ro
+    networks:
+      - rflct-lan
+  
+  influxdb:
+    container_name: influxdb
+    image: influxdb
+    restart: always
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=influx
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminadmin
+      - DOCKER_INFLUXDB_INIT_ORG=xitolab
+      - DOCKER_INFLUXDB_INIT_BUCKET=mqtt
+      - DOCKER_INFLUXDB_INIT_RETENTION=1d
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=$INFLUX_TOKEN
+    volumes:
+      - $PWD/influxdb2/data:/var/lib/influxdb2
+      # - $PWD/influxdb2/config:/etc/influxdb2
+      # - ./backup:/backup
+    networks:
+      - rflct-lan
+      
+volumes:
+  mosquitto-v:
+
